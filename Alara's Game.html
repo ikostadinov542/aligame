@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Играта на Алара</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FFF7E8;
+    --coral:#FF6B6B;
+    --coral-d:#E84F4F;
+    --gold:#FFC93C;
+    --gold-d:#E8A91C;
+    --green:#5FD068;
+    --green-d:#43B24C;
+    --sky:#4DB5FF;
+    --sky-d:#2E98E6;
+    --grape:#7C5CFC;
+    --grape-d:#5E3FE0;
+    --ink:#3A2E2A;
+    --ink-soft:#6B5A52;
+    --card:#FFFFFF;
+    --shadow:rgba(58,46,42,.18);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:'Fredoka','Nunito',system-ui,sans-serif;
+    color:var(--ink);
+    background:var(--cream);
+    overflow:hidden;
+    position:relative;
+    -webkit-user-select:none;user-select:none;
+  }
+  /* soft colour blobs in the background */
+  .blob{position:fixed;border-radius:50%;filter:blur(40px);opacity:.45;z-index:0;pointer-events:none;}
+  .blob.b1{width:50vw;height:50vw;background:var(--gold);top:-12vw;left:-12vw;}
+  .blob.b2{width:46vw;height:46vw;background:var(--sky);bottom:-14vw;right:-12vw;}
+  .blob.b3{width:38vw;height:38vw;background:var(--coral);bottom:30vh;left:-16vw;opacity:.30;}
+
+  #app{position:relative;z-index:1;height:100%;max-width:600px;margin:0 auto;display:flex;flex-direction:column;}
+
+  /* ---- top bar ---- */
+  .topbar{display:flex;align-items:center;gap:10px;padding:14px 16px 6px;}
+  .star-pill{
+    display:flex;align-items:center;gap:7px;background:var(--gold);color:#5b3f00;
+    font-weight:700;font-size:clamp(20px,6vw,28px);padding:8px 16px 8px 12px;border-radius:999px;
+    box-shadow:0 4px 0 var(--gold-d);min-width:84px;justify-content:center;
+  }
+  .star-pill .ic{font-size:1.15em;line-height:1;}
+  .spacer{flex:1;}
+  .gear{
+    width:48px;height:48px;border-radius:50%;background:#fff;border:none;cursor:pointer;
+    font-size:22px;box-shadow:0 4px 0 var(--shadow);position:relative;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;color:var(--ink-soft);
+  }
+  .gear .ring{position:absolute;inset:0;border-radius:50%;background:conic-gradient(var(--grape) var(--p,0deg),transparent 0);opacity:.35;}
+
+  /* ---- screens ---- */
+  .screen{flex:1;display:none;flex-direction:column;padding:6px 16px 20px;overflow-y:auto;}
+  .screen.on{display:flex;animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+
+  h1.greet{font-size:clamp(26px,8vw,40px);margin:10px 0 2px;font-weight:700;}
+  .sub{color:var(--ink-soft);font-size:clamp(15px,4vw,18px);margin:0 0 18px;font-weight:500;}
+
+  .big-btn{
+    border:none;cursor:pointer;color:#fff;font-family:inherit;font-weight:700;
+    border-radius:28px;padding:24px;font-size:clamp(22px,6.5vw,30px);
+    display:flex;align-items:center;justify-content:center;gap:14px;width:100%;
+    transition:transform .07s;
+  }
+  .big-btn .em{font-size:1.3em;}
+  .big-btn:active{transform:translateY(4px);}
+  .big-btn.play{background:var(--coral);box-shadow:0 7px 0 var(--coral-d);margin-bottom:16px;}
+  .big-btn.shop{background:var(--sky);box-shadow:0 7px 0 var(--sky-d);}
+  .home-btns{margin-top:auto;}
+
+  /* category picker */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px;}
+  .cat-tile{
+    background:var(--card);border:none;cursor:pointer;font-family:inherit;border-radius:22px;
+    padding:18px 10px;box-shadow:0 5px 0 var(--shadow);display:flex;flex-direction:column;
+    align-items:center;gap:8px;transition:transform .07s;color:var(--ink);
+  }
+  .cat-tile:active{transform:translateY(4px);}
+  .cat-tile .ce{font-size:clamp(40px,12vw,56px);line-height:1;}
+  .cat-tile .cn{font-weight:600;font-size:clamp(15px,4.2vw,19px);}
+  .cat-tile.surprise{background:linear-gradient(135deg,var(--grape),var(--sky));color:#fff;box-shadow:0 5px 0 var(--grape-d);}
+
+  .back{
+    align-self:flex-start;background:#fff;border:none;cursor:pointer;font-family:inherit;font-weight:600;
+    color:var(--ink-soft);border-radius:999px;padding:10px 18px;box-shadow:0 4px 0 var(--shadow);
+    font-size:17px;margin-bottom:10px;display:flex;align-items:center;gap:6px;
+  }
+  .back:active{transform:translateY(3px);}
+
+  .section-title{font-size:clamp(20px,5.5vw,26px);font-weight:700;margin:4px 0 14px;}
+
+  /* ---- game ---- */
+  .prompt{
+    text-align:center;background:var(--card);border-radius:26px;padding:22px 16px;
+    box-shadow:0 6px 0 var(--shadow);margin-bottom:4px;
+  }
+  .prompt .ptag{color:var(--ink-soft);font-weight:600;font-size:clamp(15px,4.2vw,19px);margin-bottom:6px;}
+  .prompt .pbig{font-size:clamp(70px,22vw,150px);line-height:1.05;font-weight:700;}
+  .prompt .pbig-img{display:inline-block;height:clamp(140px,34vh,300px);max-width:86%;object-fit:contain;border-radius:20px;box-shadow:0 8px 22px rgba(0,0,0,.14);}
+  .prompt .pword{font-size:clamp(40px,12vw,84px);font-weight:700;letter-spacing:1px;color:var(--coral);}
+  .count-row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;font-size:clamp(30px,9vw,52px);}
+
+  .options{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:auto;padding-top:16px;}
+  @media (max-width:380px){.options{gap:9px;}}
+  .opt{
+    background:var(--card);border:4px solid transparent;cursor:pointer;border-radius:24px;
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;
+    box-shadow:0 5px 0 var(--shadow);font-size:clamp(38px,12vw,74px);transition:transform .07s;
+    font-family:inherit;font-weight:700;color:var(--ink);padding:6px;line-height:1;
+  }
+  .opt .mini{font-size:.42em;}
+  .opt:active{transform:translateY(4px);}
+  .opt.right{border-color:var(--green);animation:pop .4s;}
+  .opt.wrong{animation:shake .4s;}
+  @keyframes pop{0%{transform:scale(1);}40%{transform:scale(1.12);}100%{transform:scale(1);}}
+  @keyframes shake{0%,100%{transform:translateX(0);}20%{transform:translateX(-9px);}40%{transform:translateX(9px);}60%{transform:translateX(-6px);}80%{transform:translateX(6px);}}
+
+  .cheer{text-align:center;font-weight:700;font-size:clamp(20px,5.5vw,26px);min-height:1.4em;margin-top:12px;color:var(--green-d);}
+  .cheer.try{color:var(--ink-soft);}
+
+  .card-stage{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;}
+  .card-caption{text-align:center;font-weight:600;color:var(--ink-soft);font-size:clamp(16px,4.5vw,21px);}
+  .card-caption .cap-cat{color:var(--grape);}
+  .judge{display:grid;grid-template-columns:1fr 1fr 1.4fr;gap:9px;margin-top:8px;}
+  .judge-btn{border:none;cursor:pointer;font-family:inherit;font-weight:700;border-radius:22px;padding:16px 6px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;color:#fff;transition:transform .07s;line-height:1;}
+  .judge-btn>span{font-size:clamp(13px,3.6vw,17px);font-weight:600;}
+  .judge-btn:active{transform:translateY(4px);}
+  .judge-btn.yes{background:var(--green);box-shadow:0 6px 0 var(--green-d);font-size:clamp(28px,7.5vw,38px);}
+  .judge-btn.skip{background:#fff;color:var(--ink-soft);box-shadow:0 6px 0 var(--shadow);font-size:clamp(22px,6vw,30px);}
+  .judge-btn.wrong{background:var(--coral);box-shadow:0 6px 0 var(--coral-d);font-size:clamp(22px,6vw,30px);}
+
+  .mini-btn{border:none;cursor:pointer;font-family:inherit;font-weight:700;background:#fff;color:var(--grape);
+    border-radius:18px;padding:14px;font-size:clamp(16px,4.5vw,19px);width:100%;box-shadow:0 4px 0 var(--shadow);margin-top:12px;}
+  .mini-btn:active{transform:translateY(3px);}
+
+  .profile-list{display:flex;flex-direction:column;gap:12px;margin-top:8px;}
+  .profile-card{display:flex;align-items:center;gap:14px;background:var(--card);border:none;cursor:pointer;
+    font-family:inherit;border-radius:22px;padding:16px 18px;box-shadow:0 5px 0 var(--shadow);color:var(--ink);transition:transform .07s;}
+  .profile-card:active{transform:translateY(4px);}
+  .profile-card .pc-emoji{font-size:34px;line-height:1;}
+  .profile-card .pc-name{flex:1;text-align:left;font-weight:700;font-size:clamp(18px,5vw,22px);}
+  .profile-card .pc-lock{font-size:18px;}
+
+  .wheel-btn{border:none;cursor:pointer;font-family:inherit;font-weight:700;border-radius:22px;padding:16px;
+    font-size:clamp(17px,4.8vw,21px);width:100%;color:#5b3f00;background:linear-gradient(100deg,#FFD93C,#FFB23C);
+    box-shadow:0 5px 0 var(--gold-d);display:flex;align-items:center;justify-content:center;gap:10px;margin:2px 0 6px;}
+  .wheel-btn:active{transform:translateY(3px);}
+  .wheel-btn .wem{font-size:1.4em;}
+  .wheel-btn.locked{background:#EFE3CF;color:var(--ink-soft);box-shadow:0 5px 0 #D9C9AF;}
+  .wheel-btn.ready{animation:wpulse 1.7s ease-in-out infinite;}
+  @keyframes wpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.035);}}
+
+  .wheel-wrap{position:relative;width:min(78vw,300px);margin:10px auto 4px;}
+  .wheel-spin{width:100%;transform-origin:50% 50%;}
+  .wheel-spin svg{display:block;width:100%;height:auto;filter:drop-shadow(0 6px 14px rgba(0,0,0,.18));}
+  .wheel-pointer{position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:0;height:0;z-index:2;
+    border-left:14px solid transparent;border-right:14px solid transparent;border-top:24px solid var(--ink);}
+  .wheel-result{text-align:center;min-height:1.6em;margin:8px 0;}
+  .wheel-prize{font-weight:700;color:var(--grape-d);font-size:clamp(18px,5vw,22px);}
+
+  .boost-badge{align-self:center;background:var(--grape);color:#fff;font-weight:700;border-radius:999px;
+    padding:6px 15px;font-size:15px;box-shadow:0 3px 0 var(--grape-d);}
+
+  .first-letter{display:flex;align-items:center;justify-content:center;gap:9px;}
+  .first-letter .fl-hint{color:var(--ink-soft);font-weight:600;font-size:14px;}
+  .first-letter .fl-letter{display:inline-flex;align-items:center;justify-content:center;min-width:46px;height:46px;
+    padding:0 10px;border-radius:14px;background:#FFF0C9;color:var(--coral-d);font-weight:700;font-size:28px;box-shadow:0 3px 0 #F0DCA0;}
+
+  .cat-tile{position:relative;}
+  .tile-badge{position:absolute;top:7px;right:9px;font-size:18px;}
+
+  .bars{display:flex;align-items:flex-end;justify-content:space-between;gap:4px;height:120px;padding-top:6px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:3px;}
+  .bar-col .bar{width:72%;max-width:30px;background:var(--green);border-radius:6px 6px 0 0;min-height:3px;}
+  .bar-col .bar-num{font-size:12px;font-weight:700;color:var(--ink-soft);min-height:14px;}
+  .bar-col .bar-lbl{font-size:12px;color:var(--ink-soft);font-weight:600;}
+
+  .card-points{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:6px;}
+  .card-points .cp-btn{width:42px;height:42px;border-radius:50%;border:none;cursor:pointer;font-family:inherit;
+    font-weight:700;font-size:26px;line-height:1;background:#fff;color:var(--ink);box-shadow:0 4px 0 var(--shadow);
+    display:flex;align-items:center;justify-content:center;}
+  .card-points .cp-btn:active{transform:translateY(3px);}
+  .card-points .cp-val{font-weight:700;color:var(--gold-d);font-size:21px;min-width:58px;text-align:center;}
+  .chip-pts{display:inline-flex;align-items:center;gap:3px;background:#fff;border-radius:999px;padding:1px 3px;margin:0 2px;}
+  .chip-pts b{min-width:14px;text-align:center;font-size:13px;color:var(--grape-d);}
+  .cpx{width:21px;height:21px;border:none;border-radius:50%;cursor:pointer;font-weight:700;line-height:1;background:var(--cream);color:var(--ink);}
+
+  /* ---- shop ---- */
+  .shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;}
+  .treat{
+    background:var(--card);border-radius:24px;padding:16px 12px 14px;box-shadow:0 5px 0 var(--shadow);
+    display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;border:none;font-family:inherit;
+    color:var(--ink);transition:transform .07s;position:relative;
+  }
+  .treat:active{transform:translateY(4px);}
+  .treat .timg{font-size:clamp(44px,13vw,64px);line-height:1;}
+  .treat img.timg{width:clamp(60px,18vw,86px);height:clamp(60px,18vw,86px);object-fit:cover;border-radius:16px;}
+  .treat .tname{font-weight:600;font-size:clamp(16px,4.5vw,20px);text-align:center;}
+  .treat .tprice{display:flex;align-items:center;gap:5px;font-weight:700;color:#5b3f00;background:var(--gold);
+    padding:5px 12px;border-radius:999px;font-size:clamp(15px,4.2vw,18px);}
+  .treat.locked{opacity:.62;}
+  .treat.locked .tprice{background:#EADBC8;color:var(--ink-soft);}
+  .treat .need{font-size:13px;color:var(--ink-soft);font-weight:600;}
+  .treat .own{position:absolute;top:8px;right:8px;background:var(--green);color:#fff;font-weight:700;
+    border-radius:999px;min-width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+    font-size:14px;padding:0 6px;}
+
+  /* ---- overlays ---- */
+  .overlay{position:fixed;inset:0;background:rgba(58,46,42,.55);z-index:50;display:none;
+    align-items:center;justify-content:center;padding:20px;}
+  .overlay.on{display:flex;animation:fade .2s ease;}
+  .sheet{background:var(--cream);border-radius:30px;width:100%;max-width:480px;max-height:92vh;
+    overflow-y:auto;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.3);}
+  .sheet h2{margin:0 0 4px;font-size:clamp(22px,6vw,28px);}
+  .sheet .hint{color:var(--ink-soft);margin:0 0 16px;font-size:15px;font-weight:500;}
+
+  .buy-card{text-align:center;}
+  .buy-card .bigtreat{font-size:90px;line-height:1;margin:6px 0;}
+  .buy-card img.bigtreat{width:120px;height:120px;object-fit:cover;border-radius:22px;display:block;margin:6px auto;}
+  .hold-btn{position:relative;overflow:hidden;border:none;cursor:pointer;color:#fff;font-family:inherit;
+    font-weight:700;background:var(--green);border-radius:22px;padding:20px;font-size:22px;width:100%;
+    box-shadow:0 6px 0 var(--green-d);margin-top:14px;}
+  .hold-btn .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(255,255,255,.32);}
+  .hold-btn .lbl{position:relative;}
+  .cancel{background:none;border:none;color:var(--ink-soft);font-family:inherit;font-weight:600;
+    font-size:17px;cursor:pointer;margin-top:12px;padding:8px;width:100%;}
+
+  /* ---- parent panel ---- */
+  .pblock{background:var(--card);border-radius:20px;padding:14px 16px;margin-bottom:14px;box-shadow:0 4px 0 var(--shadow);}
+  .pblock h3{margin:0 0 10px;font-size:18px;display:flex;align-items:center;gap:8px;}
+  .row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F0E6D6;}
+  .row:last-child{border-bottom:none;}
+  .row .rl{flex:1;display:flex;align-items:center;gap:9px;font-weight:600;font-size:16px;}
+  .row .rl .re{font-size:24px;}
+  .stepper{display:flex;align-items:center;gap:8px;}
+  .step{width:38px;height:38px;border-radius:12px;border:none;cursor:pointer;font-family:inherit;
+    font-weight:700;font-size:22px;background:var(--cream);color:var(--ink);box-shadow:0 3px 0 var(--shadow);
+    display:flex;align-items:center;justify-content:center;}
+  .step:active{transform:translateY(2px);}
+  .step.minus{background:#FFE2E2;}
+  .step.plus{background:#DBF5DE;}
+  .val{min-width:34px;text-align:center;font-weight:700;font-size:19px;}
+  .toggle{width:52px;height:30px;border-radius:999px;background:#E2D6C4;border:none;cursor:pointer;position:relative;transition:background .15s;flex-shrink:0;}
+  .toggle.on{background:var(--green);}
+  .toggle .knob{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+  .toggle.on .knob{left:25px;}
+
+  .pbtn{border:none;cursor:pointer;font-family:inherit;font-weight:700;border-radius:14px;padding:11px 14px;
+    font-size:15px;color:#fff;background:var(--grape);box-shadow:0 4px 0 var(--grape-d);}
+  .pbtn:active{transform:translateY(3px);}
+  .pbtn.ghost{background:#fff;color:var(--ink-soft);box-shadow:0 4px 0 var(--shadow);}
+  .pbtn.danger{background:var(--coral);box-shadow:0 4px 0 var(--coral-d);}
+  .pbtn.full{width:100%;margin-top:6px;}
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;}
+
+  input.fld,select.fld{font-family:inherit;font-size:16px;padding:11px 13px;border-radius:13px;border:2px solid #EADBC8;
+    background:#fff;color:var(--ink);width:100%;font-weight:600;}
+  input.fld:focus,select.fld:focus{outline:none;border-color:var(--grape);}
+  .field-row{display:flex;gap:8px;margin-bottom:8px;}
+  .field-row .grow{flex:1;}
+  label.lab{font-size:13px;color:var(--ink-soft);font-weight:600;display:block;margin:8px 0 4px;}
+
+  .items-wrap{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 4px;}
+  .items-wrap{display:flex;flex-direction:column;margin:4px 0;}
+  .item-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #F4ECDD;}
+  .item-row:last-child{border-bottom:none;}
+  .ir-media{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;
+    font-size:26px;background:var(--cream);cursor:pointer;overflow:hidden;position:relative;flex-shrink:0;}
+  .ir-media img{width:100%;height:100%;object-fit:cover;}
+  .ir-media .cam{position:absolute;right:-3px;bottom:-3px;font-size:11px;background:#fff;border-radius:50%;
+    width:17px;height:17px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+  .ir-name{flex:1;font-weight:600;font-size:15px;}
+  .ir-btn{width:34px;height:34px;border:none;border-radius:10px;cursor:pointer;background:var(--cream);font-size:15px;flex-shrink:0;}
+  .ir-btn:active{transform:translateY(2px);}
+  .newimg-prev img{vertical-align:middle;}
+  .chip{display:inline-flex;align-items:center;gap:5px;background:var(--cream);border-radius:999px;padding:5px 8px 5px 10px;font-size:15px;font-weight:600;}
+  .chip .x{background:#FFD9D9;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;color:var(--coral-d);font-weight:700;line-height:1;}
+  .cat-acc{padding:8px 0;border-bottom:1px solid #F0E6D6;}
+  .cat-head{display:flex;align-items:center;gap:9px;cursor:pointer;}
+  .cat-head .re{font-size:24px;}
+  .cat-head .nm{flex:1;font-weight:600;}
+  .cat-body{display:none;padding:8px 0 4px 4px;}
+  .cat-body.open{display:block;}
+
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);
+    color:#fff;padding:12px 22px;border-radius:999px;font-weight:600;z-index:80;opacity:0;transition:.25s;pointer-events:none;font-size:16px;}
+  .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
+
+  .float-star{position:fixed;z-index:70;font-weight:700;color:var(--gold-d);font-size:30px;pointer-events:none;
+    animation:floatup 1s ease forwards;}
+  @keyframes floatup{0%{opacity:0;transform:translateY(0) scale(.6);}20%{opacity:1;}100%{opacity:0;transform:translateY(-70px) scale(1.2);}}
+
+  .confetti{position:fixed;top:-10px;z-index:60;pointer-events:none;border-radius:2px;}
+  @keyframes confall{to{transform:translateY(105vh) rotate(720deg);opacity:0;}}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important;transition-duration:.05s!important;}
+  }
+</style>
+</head>
+<body>
+<div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+
+<div id="app">
+  <div class="topbar" style="display:none">
+    <div class="star-pill"><span class="ic">⭐</span><span id="starCount">0</span></div>
+    <div class="spacer"></div>
+    <button class="gear" id="gearBtn" title="За родители" aria-label="Родителски кът">
+      <span class="ring" id="gearRing"></span>⚙️
+    </button>
+  </div>
+
+  <!-- LOGIN -->
+  <section class="screen on" id="login">
+    <div style="margin:auto 0;width:100%">
+      <h1 class="greet" style="text-align:center;font-size:clamp(28px,8.5vw,42px)">🌟 Игрите на звездите</h1>
+      <p class="sub" style="text-align:center">Избери профил</p>
+      <div id="profileList" class="profile-list"></div>
+      <button class="mini-btn" id="addProfileBtn" style="margin-top:18px">➕ Нов профил</button>
+    </div>
+  </section>
+
+  <!-- HOME -->
+  <section class="screen" id="home">
+    <h1 class="greet" id="greetLine">Здравей!</h1>
+    <p class="sub">Виж картинката, кажи какво е, и спечели звездички ⭐</p>
+    <button class="wheel-btn" id="wheelBtn"><span class="wem">🎡</span><span id="wheelLbl">Завърти колелото!</span></button>
+    <div class="home-btns">
+      <button class="big-btn play" id="goPlay"><span class="em">🎯</span> Играй</button>
+      <button class="big-btn shop" id="goShop"><span class="em">🛒</span> Магазин</button>
+      <button class="mini-btn" id="goStats">📊 Статистика</button>
+    </div>
+  </section>
+
+  <!-- CATEGORY PICKER -->
+  <section class="screen" id="catpick">
+    <button class="back" data-home>⬅️ Назад</button>
+    <h2 class="section-title">Какво да отгатваме?</h2>
+    <div class="grid" id="catGrid"></div>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen" id="game">
+    <button class="back" data-home>⬅️ Стоп</button>
+    <div class="card-stage">
+      <div class="boost-badge" id="boostBadge" style="display:none"></div>
+      <div class="prompt" id="prompt"></div>
+      <div class="first-letter" id="firstLetter" style="display:none"></div>
+      <div class="card-caption" id="caption"></div>
+    </div>
+    <div class="cheer" id="cheer"></div>
+    <div class="card-points" id="cardPoints">
+      <button class="cp-btn" id="cpMinus" aria-label="по-малко точки">−</button>
+      <span class="cp-val"><span id="cpNum">1</span> ⭐</span>
+      <button class="cp-btn" id="cpPlus" aria-label="повече точки">+</button>
+    </div>
+    <div class="judge">
+      <button class="judge-btn wrong" id="wrongBtn">❌<span>Не позна</span></button>
+      <button class="judge-btn skip" id="skipBtn">⏭️<span>Пропусни</span></button>
+      <button class="judge-btn yes" id="yesBtn">✅<span>Позна!</span></button>
+    </div>
+  </section>
+
+  <!-- SHOP -->
+  <section class="screen" id="shop">
+    <button class="back" data-home>⬅️ Назад</button>
+    <h2 class="section-title">Магазинче 🛍️</h2>
+    <button class="mini-btn" id="goHistory" style="margin-top:0;margin-bottom:14px">🧾 История на покупките</button>
+    <div class="shop-grid" id="shopGrid"></div>
+  </section>
+</div>
+
+<!-- BUY CONFIRM OVERLAY -->
+<div class="overlay" id="buyOverlay">
+  <div class="sheet buy-card" id="buyCard"></div>
+</div>
+
+<!-- PARENT OVERLAY -->
+<div class="overlay" id="parentOverlay">
+  <div class="sheet" id="parentSheet"></div>
+</div>
+
+<!-- GENERIC MODAL (milestone / stats / history) -->
+<div class="overlay" id="modalOverlay">
+  <div class="sheet" id="modalSheet"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const KEY = "alara_game_v1";      // стар, едно-профилен запис (за миграция)
+const APPKEY = "alara_app_v2";    // нов запис с профили
+
+/* ---------- default data ---------- */
+function defaults(){
+  return {
+    stars: 0,
+    earned: 0,                  // натрупани за всички времена (за прага на 30)
+    nextMilestone: 30,
+    stats: {},                  // {catId:{correct,wrong}}
+    history: [],                // покупки
+    lastSpin: 0,                // кога е въртяно колелото
+    boost: null,                // {mult,left} активен бонус
+    daily: {},                  // {YYYY-MM-DD:{correct,wrong}}
+    firstLetter: true,          // показвай първата буква на думата
+    showWord: true,             // показвай отговора под картинката (за теб)
+    categories: [
+      {id:"plodzelen", name:"Плодове и зеленчуци", icon:"🍎", points:1, on:true, items:[
+        {l:"ябълка",e:"🍎",t:"плод"},{l:"банан",e:"🍌",t:"плод"},{l:"ягода",e:"🍓",t:"плод"},{l:"грозде",e:"🍇",t:"плод"},
+        {l:"портокал",e:"🍊",t:"плод"},{l:"диня",e:"🍉",t:"плод"},{l:"череши",e:"🍒",t:"плод"},{l:"праскова",e:"🍑",t:"плод"},
+        {l:"ананас",e:"🍍",t:"плод"},{l:"круша",e:"🍐",t:"плод"},{l:"киви",e:"🥝",t:"плод"},{l:"лимон",e:"🍋",t:"плод"},
+        {l:"морков",e:"🥕",t:"зеленчук"},{l:"домат",e:"🍅",t:"зеленчук"},{l:"царевица",e:"🌽",t:"зеленчук"},{l:"броколи",e:"🥦",t:"зеленчук"},
+        {l:"краставица",e:"🥒",t:"зеленчук"},{l:"чушка",e:"🫑",t:"зеленчук"},{l:"картоф",e:"🥔",t:"зеленчук"},{l:"лук",e:"🧅",t:"зеленчук"},
+        {l:"патладжан",e:"🍆",t:"зеленчук"},{l:"гъба",e:"🍄",t:"зеленчук"},{l:"маруля",e:"🥬",t:"зеленчук"}]},
+      {id:"jivotni", name:"Животни", icon:"🐶", points:1, on:true, modes:["match","word2pic"], items:[
+        {l:"куче",e:"🐶"},{l:"котка",e:"🐱"},{l:"заек",e:"🐰"},{l:"крава",e:"🐮"},
+        {l:"прасе",e:"🐷"},{l:"лъв",e:"🦁"},{l:"тигър",e:"🐯"},{l:"мечка",e:"🐻"},
+        {l:"маймуна",e:"🐵"},{l:"жаба",e:"🐸"},{l:"кон",e:"🐴"},{l:"пиле",e:"🐥"},
+        {l:"слон",e:"🐘"},{l:"лисица",e:"🦊"},{l:"панда",e:"🐼"}]},
+      {id:"prevozni", name:"Превозни средства", icon:"🚗", points:1, on:true, modes:["match","word2pic"], items:[
+        {l:"кола",e:"🚗"},{l:"автобус",e:"🚌"},{l:"влак",e:"🚂"},{l:"самолет",e:"✈️"},
+        {l:"кораб",e:"🚢"},{l:"ракета",e:"🚀"},{l:"пожарна",e:"🚒"},{l:"линейка",e:"🚑"},
+        {l:"полиция",e:"🚓"},{l:"трактор",e:"🚜"},{l:"колело",e:"🚲"},{l:"хеликоптер",e:"🚁"}]},
+      {id:"cvetove", name:"Цветове", icon:"🎨", points:1, on:true, modes:["match","word2pic"], items:[
+        {l:"червено",e:"🔴"},{l:"синьо",e:"🔵"},{l:"жълто",e:"🟡"},{l:"зелено",e:"🟢"},
+        {l:"оранжево",e:"🟠"},{l:"лилаво",e:"🟣"},{l:"кафяво",e:"🟤"},{l:"черно",e:"⚫"},{l:"бяло",e:"⚪"}]},
+      {id:"formi", name:"Форми", icon:"⭐", points:1, on:true, modes:["match","word2pic"], items:[
+        {l:"звезда",e:"⭐"},{l:"сърце",e:"❤️"},{l:"кръг",e:"⭕"},{l:"квадрат",e:"🟥"},
+        {l:"триъгълник",e:"🔺"},{l:"ромб",e:"🔷"}]},
+      {id:"cifri", name:"Цифри", icon:"🔢", points:1, on:true, modes:["match","count"], items:[
+        {l:"1",e:"1",n:1},{l:"2",e:"2",n:2},{l:"3",e:"3",n:3},{l:"4",e:"4",n:4},{l:"5",e:"5",n:5},
+        {l:"6",e:"6",n:6},{l:"7",e:"7",n:7},{l:"8",e:"8",n:8},{l:"9",e:"9",n:9},{l:"10",e:"10",n:10}]},
+      {id:"bukvi", name:"Букви", icon:"🔤", points:1, on:true, modes:["match"], items:[
+        {l:"А",e:"А"},{l:"Б",e:"Б"},{l:"В",e:"В"},{l:"Г",e:"Г"},{l:"Д",e:"Д"},{l:"Е",e:"Е"},
+        {l:"Л",e:"Л"},{l:"М",e:"М"},{l:"Н",e:"Н"},{l:"О",e:"О"},{l:"П",e:"П"},{l:"Р",e:"Р"},
+        {l:"С",e:"С"},{l:"Т",e:"Т"}]},
+      {id:"vreme", name:"Сезони и време", icon:"🌦️", points:1, on:true, modes:["match","word2pic"], items:[
+        {l:"слънце",e:"☀️"},{l:"дъжд",e:"🌧️"},{l:"сняг",e:"❄️"},{l:"дъга",e:"🌈"},
+        {l:"облак",e:"☁️"},{l:"буря",e:"⛈️"},{l:"снежен човек",e:"⛄"},{l:"цвете",e:"🌸"},{l:"листо",e:"🍂"}]},
+      {id:"priroda", name:"Природа", icon:"🌊", points:1, on:true, modes:["match","word2pic"], items:[
+        {l:"море",e:"🌊"},{l:"планина",e:"⛰️"},{l:"дърво",e:"🌳"},{l:"цвете",e:"🌼"},
+        {l:"луна",e:"🌙"},{l:"плаж",e:"🏖️"},{l:"вулкан",e:"🌋"},{l:"гора",e:"🌲"}]}
+    ],
+    treats: [
+      {id:"soleti", name:"Солети", emoji:"🥨", photo:null, price:15},
+      {id:"smuti", name:"Смути", emoji:"🥤", photo:null, price:20},
+      {id:"nesquik", name:"Nesquik", emoji:"🥣", photo:null, price:35},
+      {id:"pica", name:"Пица", emoji:"🍕", photo:null, price:55},
+      {id:"sushi", name:"Суши", emoji:"🍣", photo:null, price:80},
+      {id:"torta", name:"Торта", emoji:"🍰", photo:null, price:110},
+      {id:"sladoled", name:"Сладолед", emoji:"🍦", photo:null, price:135}
+    ],
+    bought:{},
+    goal:null
+  };
+}
+
+/* ---------- profiles + state ---------- */
+function migrate(s){
+  if(!s||!Array.isArray(s.categories)) return s;
+  const f=s.categories.find(c=>c.id==="plodove");
+  const v=s.categories.find(c=>c.id==="zelenchuci");
+  if(f&&v&&!s.categories.find(c=>c.id==="plodzelen")){
+    const items=[...f.items.map(i=>({...i,t:i.t||"плод"})),...v.items.map(i=>({...i,t:i.t||"зеленчук"}))];
+    const merged={id:"plodzelen",name:"Плодове и зеленчуци",icon:"🍎",points:f.points||1,on:f.on!==false,items};
+    const idx=Math.min(s.categories.indexOf(f),s.categories.indexOf(v));
+    s.categories=s.categories.filter(c=>c.id!=="plodove"&&c.id!=="zelenchuci");
+    s.categories.splice(idx,0,merged);
+  }
+  return s;
+}
+let App = loadApp();
+let state = null;            // данните на активния профил
+function loadApp(){
+  try{const r=localStorage.getItem(APPKEY);if(r)return JSON.parse(r);}catch(e){}
+  try{const r=localStorage.getItem(KEY);if(r){const legacy=migrate(Object.assign(defaults(),JSON.parse(r)));
+    return {profiles:[{id:"p"+Date.now(),name:"Алара",emoji:"🧒",pass:"",data:legacy}],activeId:null};}}catch(e){}
+  return {profiles:[],activeId:null};
+}
+function saveApp(){try{localStorage.setItem(APPKEY,JSON.stringify(App));}catch(e){}}
+function activeProfile(){return App.profiles.find(p=>p.id===App.activeId);}
+function activeName(){const p=activeProfile();return p?p.name:"";}
+function save(){const p=activeProfile();if(p)p.data=state;saveApp();}
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+const rnd=a=>a[Math.floor(Math.random()*a.length)];
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function show(id){$$(".screen").forEach(s=>s.classList.toggle("on",s.id===id));if(id==="home")updateWheelBtn();if(id==="game")renderBoostBadge();}
+function renderStars(){if(!state)return;$("#starCount").textContent=state.stars;}
+function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("on");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("on"),1800);}
+
+/* ---------- home ---------- */
+$("#goPlay").onclick=()=>{renderCatPicker();show("catpick");};
+$("#goShop").onclick=()=>{renderShop();show("shop");};
+$$("[data-home]").forEach(b=>b.onclick=()=>show("home"));
+
+/* ---------- category picker ---------- */
+function renderCatPicker(){
+  const g=$("#catGrid");g.innerHTML="";
+  const sur=document.createElement("button");
+  sur.className="cat-tile surprise";
+  sur.innerHTML='<span class="ce">🎲</span><span class="cn">Изненада</span>';
+  sur.onclick=()=>startGame("mixed");
+  g.appendChild(sur);
+  state.categories.filter(c=>c.on&&c.items.length).forEach(c=>{
+    const b=document.createElement("button");
+    b.className="cat-tile";
+    const lvl=levelFor(catCorrect(c.id)).lv;
+    b.innerHTML=`<span class="tile-badge" title="${lvl.n}">${lvl.i}</span><span class="ce">${c.icon}</span><span class="cn">${c.name}</span>`;
+    b.onclick=()=>startGame(c.id);
+    g.appendChild(b);
+  });
+}
+
+/* ---------- game engine (flashcards, parent-judged) ---------- */
+let gctx=null;
+function startGame(catId){gctx={catId,busy:false};show("game");nextCard();}
+function activeCats(){return state.categories.filter(c=>c.on&&c.items.length);}
+function pickCat(){
+  if(gctx.catId==="mixed") return rnd(activeCats());
+  return state.categories.find(c=>c.id===gctx.catId);
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function nextCard(){
+  $("#cheer").textContent="";$("#cheer").className="cheer";
+  gctx.busy=false;
+  const cat=pickCat();
+  let promptHTML, answer, itemTag="", it=null;
+  if(cat.id==="cifri"){
+    it=rnd(cat.items); const n=it.n;
+    if(Math.random()<0.5){
+      promptHTML=`<div class="ptag">Кое число е това?</div><div class="pbig">${n}</div>`;
+    }else{
+      const emo=rnd(["🍎","⭐","🐤","🎈","🍓","🚗","🌸"]);
+      promptHTML=`<div class="ptag">Преброй колко са</div><div class="count-row">${emo.repeat(n)}</div>`;
+    }
+    answer=String(n);
+  }else{
+    it=rnd(cat.items);
+    const q = cat.id==="bukvi" ? "Коя буква е това?"
+            : cat.id==="plodzelen" ? "Плод или зеленчук? Кажи кое е."
+            : "Кажи какво е";
+    const media = it.img ? `<img class="pbig-img" src="${it.img}" alt="">` : `<div class="pbig">${it.e}</div>`;
+    promptHTML=`<div class="ptag">${q}</div>${media}`;
+    answer=cap(it.l);
+    if(it.t) itemTag=cap(it.t);
+  }
+  gctx.cat=cat; gctx.item=it;
+  gctx.award = (it.p!=null) ? it.p : cat.points;
+  const prefix = itemTag ? itemTag : (gctx.catId==="mixed" ? cat.name : "");
+  $("#prompt").innerHTML=promptHTML;
+  const capEl=$("#caption");
+  if(state.showWord){ capEl.style.display="block"; capEl.innerHTML=`<span class="cap-cat">${prefix?prefix+" · ":""}</span>${answer}`; }
+  else capEl.style.display="none";
+  const flEl=$("#firstLetter");
+  if(flEl){
+    const ok = state.firstLetter && cat.id!=="cifri" && cat.id!=="bukvi" && answer && /[A-Za-zА-Яа-я]/.test(answer[0]);
+    if(ok){ flEl.style.display="flex"; flEl.innerHTML=`<span class="fl-hint">започва с</span><span class="fl-letter">${answer[0].toUpperCase()}</span>`; }
+    else flEl.style.display="none";
+  }
+  renderCardPoints();
+  renderBoostBadge();
+}
+function renderCardPoints(){ const el=$("#cpNum"); if(el) el.textContent=(gctx&&gctx.award!=null)?gctx.award:1; }
+function changeCardPoints(d){
+  if(!gctx||!gctx.item)return;
+  const it=gctx.item, base=(it.p!=null?it.p:gctx.cat.points);
+  it.p=Math.max(1,base+d); save(); gctx.award=it.p; renderCardPoints();
+}
+function recordStat(catId,kind){
+  if(!state.stats)state.stats={};
+  if(!state.stats[catId])state.stats[catId]={correct:0,wrong:0};
+  state.stats[catId][kind]=(state.stats[catId][kind]||0)+1;
+}
+function dateKey(d){d=d||new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
+function recordDaily(kind){
+  if(!state.daily)state.daily={};const k=dateKey();
+  if(!state.daily[k])state.daily[k]={correct:0,wrong:0};
+  state.daily[k][kind]=(state.daily[k][kind]||0)+1;
+}
+function catCorrect(id){return (state.stats&&state.stats[id]&&state.stats[id].correct)||0;}
+const LEVELS=[{i:"🥉",n:"Бронз",min:0},{i:"🥈",n:"Сребро",min:20},{i:"🥇",n:"Злато",min:50},{i:"🏆",n:"Шампион",min:100}];
+function levelFor(c){let lv=LEVELS[0];for(const L of LEVELS)if(c>=L.min)lv=L;const idx=LEVELS.indexOf(lv);return {lv,next:LEVELS[idx+1]||null};}
+function checkMilestone(){
+  if(!state.nextMilestone)state.nextMilestone=30;
+  if((state.earned||0) >= state.nextMilestone){
+    while((state.earned||0) >= state.nextMilestone) state.nextMilestone+=30;
+    save();
+    setTimeout(showMilestone,650);
+  }
+}
+function judgeYes(){
+  if(!gctx||gctx.busy)return; gctx.busy=true;
+  let gain=gctx.award;
+  if(state.boost&&state.boost.left>0) gain*=state.boost.mult;
+  consumeBoost();
+  state.stars+=gain;
+  state.earned=(state.earned||0)+gain;
+  const before=catCorrect(gctx.cat.id);
+  recordStat(gctx.cat.id,"correct");
+  recordDaily("correct");
+  save(); renderStars(); renderBoostBadge();
+  floatStar("+"+gain); confetti();
+  $("#cheer").textContent=rnd(["Браво! 🎉","Супер! ⭐","Точно така! 👏","Умница! 🌟","Ехаа! 🎈"]);
+  $("#cheer").className="cheer";
+  if(levelFor(before+1).lv.min!==levelFor(before).lv.min){
+    const L=levelFor(before+1).lv;
+    setTimeout(()=>toast(`${gctx.cat.icon} ${gctx.cat.name}: ${L.i} ${L.n}!`),300);
+  }
+  checkMilestone();
+  setTimeout(nextCard,1000);
+}
+function judgeWrong(){
+  if(!gctx||gctx.busy)return; gctx.busy=true;
+  consumeBoost();
+  recordStat(gctx.cat.id,"wrong"); recordDaily("wrong"); save(); renderBoostBadge();
+  $("#cheer").textContent="Нищо, ще успееш! 💪"; $("#cheer").className="cheer try";
+  setTimeout(nextCard,800);
+}
+function judgeSkip(){ if(!gctx||gctx.busy)return; consumeBoost(); save(); nextCard(); }
+function judgeSkip(){ if(!gctx||gctx.busy)return; nextCard(); }
+$("#yesBtn").onclick=judgeYes;
+$("#wrongBtn").onclick=judgeWrong;
+$("#skipBtn").onclick=judgeSkip;
+$("#cpPlus").onclick=()=>changeCardPoints(1);
+$("#cpMinus").onclick=()=>changeCardPoints(-1);
+
+/* ---------- modal (milestone / stats / history) ---------- */
+function openModal(html){const s=$("#modalSheet");s.innerHTML=html;$("#modalOverlay").classList.add("on");}
+function closeModal(){$("#modalOverlay").classList.remove("on");}
+$("#modalOverlay").addEventListener("click",e=>{if(e.target.id==="modalOverlay")closeModal();});
+
+function showMilestone(){
+  openModal(`<div style="text-align:center">
+    <div style="font-size:84px;line-height:1;margin-bottom:4px">🌟</div>
+    <h2>Честито, ${activeName()}! 🎉</h2>
+    <p class="hint" style="font-size:18px;margin-bottom:10px">Справяш се отлично.</p>
+    <div class="star-pill" style="margin:0 auto 16px;display:inline-flex"><span class="ic">⭐</span>${state.stars}</div>
+    <button class="pbtn full" id="modalClose">Продължи</button>
+  </div>`);
+  $("#modalClose").onclick=closeModal;
+  confetti();
+}
+function buildDailyChart(){
+  const now=new Date(), wd=["нд","пн","вт","ср","чт","пт","сб"], data=[];
+  for(let i=6;i>=0;i--){const d=new Date(now);d.setDate(now.getDate()-i);const e=(state.daily&&state.daily[dateKey(d)])||{};data.push({d,c:e.correct||0});}
+  const max=Math.max(1,...data.map(x=>x.c));
+  const bars=data.map(x=>{
+    const h=Math.round(x.c/max*84), today=dateKey(x.d)===dateKey(now);
+    return `<div class="bar-col"><div class="bar-num">${x.c||""}</div><div class="bar" style="height:${h}px;${today?"background:var(--coral)":""}"></div><div class="bar-lbl">${wd[x.d.getDay()]}</div></div>`;
+  }).join("");
+  const total=data.reduce((a,x)=>a+x.c,0);
+  return `<div class="pblock"><h3 style="margin-bottom:6px">📈 Последните 7 дни</h3><div class="bars">${bars}</div>
+    <div class="hint" style="text-align:center;margin-top:8px">Общо за седмицата: <b style="color:var(--green-d)">${total}</b> верни</div></div>`;
+}
+function showStats(){
+  let totalC=0,totalW=0,rows="";
+  state.categories.forEach(c=>{
+    const s=(state.stats&&state.stats[c.id])?state.stats[c.id]:{correct:0,wrong:0};
+    totalC+=s.correct||0; totalW+=s.wrong||0;
+    const lv=levelFor(s.correct||0).lv;
+    rows+=`<div class="row"><div class="rl"><span class="re">${c.icon}</span>${c.name} <span title="${lv.n}" style="font-size:17px">${lv.i}</span></div>
+      <div style="font-weight:700;white-space:nowrap"><span style="color:var(--green-d)">${s.correct||0} ✓</span> &nbsp;<span style="color:var(--coral-d)">${s.wrong||0} ✗</span></div></div>`;
+  });
+  openModal(`<h2>📊 Статистика</h2>
+    ${buildDailyChart()}
+    <div class="pblock"><h3 style="margin-bottom:6px">По категории</h3>${rows}</div>
+    <div class="pblock"><div class="row"><div class="rl">Общо</div>
+      <div style="font-weight:700;white-space:nowrap"><span style="color:var(--green-d)">${totalC} ✓</span> &nbsp;<span style="color:var(--coral-d)">${totalW} ✗</span></div></div></div>
+    <div class="btn-row"><button class="pbtn ghost" id="statsReset">Нулирай</button><button class="pbtn grow" id="modalClose">Затвори</button></div>`);
+  $("#modalClose").onclick=closeModal;
+  $("#statsReset").onclick=()=>{if(confirm("Да нулирам статистиката, графиката и нивата?")){state.stats={};state.daily={};save();showStats();}};
+}
+function showHistory(){
+  let body;
+  if(!state.history||!state.history.length){
+    body=`<p class="hint">Още няма покупки.</p>`;
+  }else{
+    let rows="";
+    state.history.slice().reverse().forEach(h=>{
+      const d=new Date(h.ts);
+      const ds=d.toLocaleDateString("bg-BG")+" "+d.toLocaleTimeString("bg-BG",{hour:"2-digit",minute:"2-digit"});
+      rows+=`<div class="row"><div class="rl">${h.emoji||"🍬"} ${h.name}</div>
+        <div style="text-align:right"><div style="font-weight:700;color:var(--gold-d)">−${h.price} ⭐</div>
+        <div class="hint" style="font-size:12px;margin:0">${ds}</div></div></div>`;
+    });
+    body=`<div class="pblock">${rows}</div>`;
+  }
+  const clearBtn=(state.history&&state.history.length)?`<button class="pbtn ghost" id="histClear">Изчисти</button>`:"";
+  openModal(`<h2>🧾 История на покупките</h2>${body}
+    <div class="btn-row">${clearBtn}<button class="pbtn grow" id="modalClose">Затвори</button></div>`);
+  $("#modalClose").onclick=closeModal;
+  const hc=$("#histClear"); if(hc) hc.onclick=()=>{if(confirm("Да изчистя историята?")){state.history=[];save();showHistory();}};
+}
+$("#goStats").onclick=showStats;
+$("#goHistory").onclick=showHistory;
+
+/* ---------- daily wheel ---------- */
+const WHEEL=[
+  {t:"star",v:5,label:"5⭐",color:"#FFC93C"},
+  {t:"boost",v:2,n:5,label:"×2",color:"#7C5CFC"},
+  {t:"star",v:10,label:"10⭐",color:"#5FD068"},
+  {t:"star",v:5,label:"5⭐",color:"#4DB5FF"},
+  {t:"star",v:15,label:"15⭐",color:"#FF6B6B"},
+  {t:"boost",v:2,n:5,label:"×2",color:"#7C5CFC"},
+  {t:"star",v:10,label:"10⭐",color:"#5FD068"},
+  {t:"star",v:20,label:"20⭐",color:"#FFB23C"}
+];
+const DAY=24*3600*1000;
+function canSpin(){return (Date.now()-(state.lastSpin||0))>=DAY;}
+function spinRemaining(){return Math.max(0,DAY-(Date.now()-(state.lastSpin||0)));}
+function renderBoostBadge(){
+  const el=$("#boostBadge"); if(!el||!state)return;
+  if(state.boost&&state.boost.left>0){el.style.display="block";el.textContent=`⚡ Двойни точки · още ${state.boost.left}`;}
+  else el.style.display="none";
+}
+function consumeBoost(){
+  if(state.boost&&state.boost.left>0){ state.boost.left--; if(state.boost.left<=0)state.boost=null; }
+}
+function updateWheelBtn(){
+  const b=$("#wheelBtn"),l=$("#wheelLbl"); if(!b||!l||!state)return;
+  if(canSpin()){b.classList.add("ready");b.classList.remove("locked");l.textContent="Завърти колелото!";}
+  else{
+    b.classList.remove("ready");b.classList.add("locked");
+    const ms=spinRemaining(),h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000);
+    l.textContent = h>0 ? `Колело — след ${h}ч ${m}м` : `Колело — след ${m} мин`;
+  }
+}
+function buildWheelSVG(){
+  const n=WHEEL.length,cx=100,cy=100,r=98,seg=360/n;
+  const pt=(deg,rad)=>{const a=deg*Math.PI/180;return [cx+rad*Math.sin(a),cy-rad*Math.cos(a)];};
+  let paths="",labels="";
+  for(let i=0;i<n;i++){
+    const [x0,y0]=pt(i*seg,r),[x1,y1]=pt((i+1)*seg,r);
+    paths+=`<path d="M${cx} ${cy} L${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z" fill="${WHEEL[i].color}" stroke="#fff" stroke-width="2"/>`;
+    const [lx,ly]=pt(i*seg+seg/2,r*0.64);
+    labels+=`<text x="${lx.toFixed(2)}" y="${ly.toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-size="19" font-weight="700" fill="#fff" font-family="Fredoka,sans-serif">${WHEEL[i].label}</text>`;
+  }
+  return `<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">${paths}${labels}<circle cx="100" cy="100" r="15" fill="#fff" stroke="#EADBC8" stroke-width="2"/></svg>`;
+}
+let wheelRot=0,spinning=false;
+function openWheel(){
+  if(!canSpin()){
+    const ms=spinRemaining(),h=Math.floor(ms/3600000),m=Math.floor(ms%3600000/60000);
+    openModal(`<div style="text-align:center"><div style="font-size:72px;line-height:1">🎡</div>
+      <h2>Колелото почива</h2><p class="hint">Ела пак след ${h>0?h+"ч "+m+"м":m+" мин"} за нова награда!</p>
+      <button class="pbtn full" id="modalClose">Добре</button></div>`);
+    $("#modalClose").onclick=closeModal; return;
+  }
+  wheelRot=0;
+  openModal(`<h2 style="text-align:center;margin-bottom:2px">🎡 Колелото на късмета</h2>
+    <p class="hint" style="text-align:center">Завърти веднъж на ден!</p>
+    <div class="wheel-wrap"><div class="wheel-pointer"></div><div class="wheel-spin" id="wheelSpin">${buildWheelSVG()}</div></div>
+    <div class="wheel-result" id="wheelResult"></div>
+    <button class="pbtn full" id="spinBtn">Завърти!</button>`);
+  $("#spinBtn").onclick=spin;
+}
+function applyPrize(p){
+  if(p.t==="star"){state.stars+=p.v;state.earned=(state.earned||0)+p.v;renderStars();}
+  else if(p.t==="boost"){state.boost={mult:p.v,left:p.n};renderBoostBadge();}
+  save();
+}
+function spin(){
+  if(spinning||!canSpin())return;
+  spinning=true;
+  const sb=$("#spinBtn");sb.disabled=true;sb.textContent="…";
+  const i=Math.floor(Math.random()*WHEEL.length);
+  applyPrize(WHEEL[i]);
+  state.lastSpin=Date.now();save();updateWheelBtn();
+  const seg=360/WHEEL.length, target=(360-(i*seg+seg/2))%360;
+  wheelRot += 360*5 + ((target-(wheelRot%360)+360)%360);
+  const el=$("#wheelSpin");
+  el.style.transition="transform 3.6s cubic-bezier(.16,.84,.3,1)";
+  el.style.transform=`rotate(${wheelRot}deg)`;
+  setTimeout(()=>{
+    spinning=false;
+    const p=WHEEL[i];
+    $("#wheelResult").innerHTML=`<div class="wheel-prize">${p.t==="star"?`+${p.v} ⭐ за теб!`:`Двойни точки за следващите ${p.n} опита! ⚡`}</div>`;
+    confetti();
+    sb.disabled=false;sb.textContent="Супер!";sb.onclick=closeModal;
+  },3700);
+}
+$("#wheelBtn").onclick=openWheel;
+setInterval(()=>{ if($("#home").classList.contains("on")) updateWheelBtn(); },30000);
+
+/* visual feedback */
+function floatStar(txt){
+  const pill=$(".star-pill").getBoundingClientRect();
+  const el=document.createElement("div");el.className="float-star";el.textContent=txt;
+  el.style.left=(pill.left+pill.width/2-14)+"px";el.style.top=(pill.bottom-6)+"px";
+  document.body.appendChild(el);setTimeout(()=>el.remove(),1000);
+}
+function confetti(){
+  if(matchMedia("(prefers-reduced-motion:reduce)").matches)return;
+  const colors=["#FF6B6B","#FFC93C","#5FD068","#4DB5FF","#7C5CFC"];
+  for(let i=0;i<26;i++){
+    const c=document.createElement("div");c.className="confetti";
+    const s=6+Math.random()*8;
+    c.style.cssText=`width:${s}px;height:${s*0.6}px;background:${rnd(colors)};left:${Math.random()*100}vw;`;
+    c.style.animation=`confall ${1+Math.random()*0.8}s ease-in forwards`;
+    document.body.appendChild(c);setTimeout(()=>c.remove(),1900);
+  }
+}
+
+/* ---------- shop ---------- */
+function renderShop(){
+  const g=$("#shopGrid");g.innerHTML="";
+  state.treats.forEach(t=>{
+    const owned=state.bought[t.id]||0;
+    const can=state.stars>=t.price;
+    const b=document.createElement("button");
+    b.className="treat"+(can?"":" locked");
+    const img=t.photo?`<img class="timg" src="${t.photo}" alt="">`:`<div class="timg">${t.emoji||"🍬"}</div>`;
+    b.innerHTML=`${owned?`<span class="own">×${owned}</span>`:""}${img}
+      <div class="tname">${t.name}</div>
+      <div class="tprice">⭐ ${t.price}</div>
+      ${can?"":`<div class="need">още ${t.price-state.stars} ⭐</div>`}`;
+    b.onclick=()=>{ can?openBuy(t):(state.goal=t.id,save(),toast("Целта е "+t.name+" 🎯")); };
+    g.appendChild(b);
+  });
+}
+let holdTimer=null;
+function openBuy(t){
+  const card=$("#buyCard");
+  const img=t.photo?`<img class="bigtreat" src="${t.photo}" alt="">`:`<div class="bigtreat">${t.emoji||"🍬"}</div>`;
+  card.innerHTML=`${img}<h2>${t.name}</h2><p class="hint">Струва ⭐ ${t.price}. Задръж бутона, за да купиш.</p>
+    <button class="hold-btn" id="holdBtn"><span class="fill" id="holdFill"></span><span class="lbl">Задръж за купуване</span></button>
+    <button class="cancel" id="cancelBuy">Отказ</button>`;
+  $("#buyOverlay").classList.add("on");
+  const btn=$("#holdBtn"),fill=$("#holdFill");
+  let start=0,raf=0;const DUR=1400;
+  function begin(e){e.preventDefault();start=performance.now();step();}
+  function step(){
+    const p=Math.min(1,(performance.now()-start)/DUR);
+    fill.style.width=(p*100)+"%";
+    if(p>=1){ doBuy(t); return; }
+    raf=requestAnimationFrame(step);
+  }
+  function end(){cancelAnimationFrame(raf);fill.style.width="0";}
+  btn.addEventListener("pointerdown",begin);
+  btn.addEventListener("pointerup",end);
+  btn.addEventListener("pointerleave",end);
+  btn.addEventListener("pointercancel",end);
+  $("#cancelBuy").onclick=()=>{cancelAnimationFrame(raf);$("#buyOverlay").classList.remove("on");};
+}
+function doBuy(t){
+  $("#buyOverlay").classList.remove("on");
+  state.stars-=t.price;
+  state.bought[t.id]=(state.bought[t.id]||0)+1;
+  state.history=state.history||[];
+  state.history.push({name:t.name,price:t.price,emoji:t.emoji||(t.photo?"🖼️":"🍬"),ts:Date.now()});
+  if(state.history.length>300)state.history=state.history.slice(-300);
+  if(state.goal===t.id)state.goal=null;
+  save();renderStars();confetti();
+  toast("Купи "+t.name+"! 😋");
+  renderShop();
+}
+
+/* ---------- parent gear (long press) ---------- */
+(function(){
+  const g=$("#gearBtn"),ring=$("#gearRing");let t=0,raf=0;const DUR=1100;
+  function begin(e){e.preventDefault();t=performance.now();step();}
+  function step(){
+    const p=Math.min(1,(performance.now()-t)/DUR);
+    ring.style.setProperty("--p",(p*360)+"deg");
+    if(p>=1){ring.style.setProperty("--p","0deg");openParent();return;}
+    raf=requestAnimationFrame(step);
+  }
+  function end(){cancelAnimationFrame(raf);ring.style.setProperty("--p","0deg");}
+  g.addEventListener("pointerdown",begin);
+  g.addEventListener("pointerup",end);
+  g.addEventListener("pointerleave",end);
+  g.addEventListener("pointercancel",end);
+})();
+
+/* ---------- parent panel ---------- */
+function openParent(){renderParent();$("#parentOverlay").classList.add("on");}
+function closeParent(){$("#parentOverlay").classList.remove("on");renderStars();}
+function renderParent(){
+  const s=$("#parentSheet");
+  s.innerHTML=`
+    <h2>Родителски кът 🔧</h2>
+    <p class="hint">Промените се пазят на това устройство и важат веднага.</p>
+
+    <div class="pblock">
+      <h3>👤 Профил: ${activeName()}</h3>
+      <div class="btn-row">
+        <button class="pbtn" id="switchProfile">🔄 Смени профил</button>
+        <button class="pbtn ghost" id="renameProfile">✏️ Преименувай</button>
+        <button class="pbtn ghost" id="passProfile">🔒 Парола</button>
+        <button class="pbtn danger" id="delProfile">🗑️ Изтрий</button>
+      </div>
+    </div>
+
+    <div class="pblock">
+      <h3>⭐ Звезди</h3>
+      <div class="row">
+        <div class="rl">Общо звезди</div>
+        <div class="stepper">
+          <button class="step minus" data-star="-10">−10</button>
+          <button class="step minus" data-star="-1">−1</button>
+          <span class="val" id="pStars">${state.stars}</span>
+          <button class="step plus" data-star="1">+1</button>
+          <button class="step plus" data-star="10">+10</button>
+        </div>
+      </div>
+      <div class="field-row" style="margin-top:8px">
+        <input class="fld grow" id="setStars" type="number" inputmode="numeric" placeholder="точен брой">
+        <button class="pbtn" id="applyStars">Задай</button>
+      </div>
+    </div>
+
+    <div class="pblock">
+      <h3>🎯 Точки и категории</h3>
+      <p class="hint" style="margin:-4px 0 8px">Вдигни/намали колко звезди носи всяка категория. Изключи с превключвателя.</p>
+      <div id="catList"></div>
+      <label class="lab">Нова категория</label>
+      <div class="field-row">
+        <input class="fld" id="newCatIcon" placeholder="🦋" style="max-width:72px">
+        <input class="fld grow" id="newCatName" placeholder="Име (напр. Музика)">
+        <button class="pbtn" id="newCatAdd">Добави</button>
+      </div>
+    </div>
+
+    <div class="pblock">
+      <h3>🧠 Игра</h3>
+      <p class="hint" style="margin:-4px 0 8px">По време на игра, под картинката има бутон −&nbsp;⭐&nbsp;+ за точките на конкретната дума.</p>
+      <div class="row">
+        <div class="rl">Показвай отговора под картинката (за теб)</div>
+        <button class="toggle ${state.showWord?"on":""}" id="wordTog"><span class="knob"></span></button>
+      </div>
+      <div class="row">
+        <div class="rl">Показвай първата буква на думата</div>
+        <button class="toggle ${state.firstLetter?"on":""}" id="flTog"><span class="knob"></span></button>
+      </div>
+    </div>
+
+    <div class="pblock">
+      <h3>🛒 Лакомства</h3>
+      <div id="treatList"></div>
+      <label class="lab">Добави ново лакомство</label>
+      <div class="field-row">
+        <input class="fld grow" id="ntName" placeholder="Име (напр. Шоколад)">
+        <input class="fld" id="ntPrice" type="number" inputmode="numeric" placeholder="⭐" style="max-width:90px">
+      </div>
+      <div class="field-row">
+        <input class="fld" id="ntEmoji" placeholder="Емоджи 🍫" style="max-width:120px">
+        <button class="pbtn ghost grow" id="ntPhotoBtn">📷 Снимка</button>
+        <input type="file" id="ntPhoto" accept="image/*" hidden>
+      </div>
+      <div id="ntPreview"></div>
+      <button class="pbtn full" id="ntAdd">Добави лакомство</button>
+    </div>
+
+    <div class="pblock">
+      <h3>💾 Данни</h3>
+      <div class="btn-row">
+        <button class="pbtn ghost" id="expBtn">Запази копие</button>
+        <button class="pbtn ghost" id="impBtn">Зареди копие</button>
+        <input type="file" id="impFile" accept="application/json" hidden>
+        <button class="pbtn danger" id="resetBtn">Нулирай всичко</button>
+      </div>
+    </div>
+
+    <button class="pbtn full" id="closeParent" style="margin-top:4px">Готово</button>
+  `;
+  wireParent();
+}
+
+let newPhoto=null;
+const pendingItemImg={};
+function pickImage(cb,max){
+  const inp=document.createElement("input");
+  inp.type="file";inp.accept="image/*";inp.style.display="none";
+  document.body.appendChild(inp);
+  inp.onchange=e=>{const f=e.target.files[0];if(f)resizeImg(f,d=>cb(d),max||480);setTimeout(()=>inp.remove(),400);};
+  inp.click();
+}
+function wireParent(){
+  // profile
+  $("#switchProfile").onclick=()=>{closeParent();showLogin();};
+  $("#renameProfile").onclick=()=>{
+    const p=activeProfile();
+    openModal(`<h2>Преименувай</h2>
+      <label class="lab">Име</label><input class="fld" id="rnName" value="${p.name}">
+      <label class="lab">Емоджи</label><input class="fld" id="rnEmoji" value="${p.emoji||'🧒'}">
+      <div class="btn-row"><button class="pbtn ghost" id="modalClose">Отказ</button><button class="pbtn grow" id="rnSave">Запази</button></div>`);
+    $("#modalClose").onclick=closeModal;
+    $("#rnSave").onclick=()=>{const n=$("#rnName").value.trim();if(!n)return;p.name=n;p.emoji=$("#rnEmoji").value.trim()||"🧒";saveApp();closeModal();$("#greetLine").textContent="Здравей, "+activeName()+"!";renderParent();};
+  };
+  $("#passProfile").onclick=()=>{
+    const p=activeProfile();
+    openModal(`<h2>Парола</h2><p class="hint">Остави празно, за да махнеш паролата.</p>
+      <input class="fld" id="cpPass" type="password" placeholder="Нова парола" value="${(p.pass||'').replace(/"/g,'&quot;')}">
+      <div class="btn-row"><button class="pbtn ghost" id="modalClose">Отказ</button><button class="pbtn grow" id="cpSave">Запази</button></div>`);
+    $("#modalClose").onclick=closeModal;
+    $("#cpSave").onclick=()=>{p.pass=$("#cpPass").value;saveApp();closeModal();toast(p.pass?"Паролата е зададена 🔒":"Паролата е махната 🔓");};
+  };
+  $("#delProfile").onclick=()=>{
+    const p=activeProfile();
+    if(confirm("Да изтрия профила „"+p.name+"“ с всичките данни? Това е необратимо.")){
+      App.profiles=App.profiles.filter(x=>x.id!==App.activeId);saveApp();closeParent();showLogin();
+    }
+  };
+  // stars
+  $$("[data-star]").forEach(b=>b.onclick=()=>{
+    state.stars=Math.max(0,state.stars+parseInt(b.dataset.star));save();$("#pStars").textContent=state.stars;
+  });
+  $("#applyStars").onclick=()=>{
+    const v=parseInt($("#setStars").value);if(!isNaN(v)){state.stars=Math.max(0,v);save();$("#pStars").textContent=state.stars;}
+  };
+  // categories
+  renderCatList();
+  $("#newCatAdd").onclick=()=>{
+    const icon=$("#newCatIcon").value.trim()||"⭐";
+    const name=$("#newCatName").value.trim();
+    if(!name){toast("Дай име на категорията");return;}
+    state.categories.push({id:"u"+Date.now(),name,icon,points:1,on:true,items:[]});
+    save();$("#newCatName").value="";$("#newCatIcon").value="";renderCatList();
+    toast("Категорията е добавена ✓");
+  };
+  // hard mode
+  $("#wordTog").onclick=()=>{state.showWord=!state.showWord;save();$("#wordTog").classList.toggle("on",state.showWord);};
+  $("#flTog").onclick=()=>{state.firstLetter=!state.firstLetter;save();$("#flTog").classList.toggle("on",state.firstLetter);};
+  // treats
+  renderTreatList();
+  newPhoto=null;$("#ntPreview").innerHTML="";
+  $("#ntPhotoBtn").onclick=()=>$("#ntPhoto").click();
+  $("#ntPhoto").onchange=e=>{const f=e.target.files[0];if(f)resizeImg(f,d=>{newPhoto=d;$("#ntPreview").innerHTML=`<img src="${d}" style="width:64px;height:64px;object-fit:cover;border-radius:12px;margin:6px 0">`;});};
+  $("#ntAdd").onclick=addTreat;
+  // data
+  $("#expBtn").onclick=exportData;
+  $("#impBtn").onclick=()=>$("#impFile").click();
+  $("#impFile").onchange=importData;
+  $("#resetBtn").onclick=()=>{if(confirm("Сигурен ли си? Всички звезди и настройки ще се изтрият.")){state=defaults();save();renderStars();renderParent();}};
+  $("#closeParent").onclick=closeParent;
+}
+
+function renderCatList(){
+  const box=$("#catList");box.innerHTML="";
+  state.categories.forEach((c,ci)=>{
+    const acc=document.createElement("div");acc.className="cat-acc";
+    acc.innerHTML=`
+      <div class="cat-head">
+        <span class="re">${c.icon}</span>
+        <span class="nm">${c.name}</span>
+        <div class="stepper">
+          <button class="step minus" data-cp="${ci}|-1">−</button>
+          <span class="val">${c.points}</span>
+          <button class="step plus" data-cp="${ci}|1">+</button>
+        </div>
+        <button class="toggle ${c.on?"on":""}" data-con="${ci}" style="margin-left:8px"><span class="knob"></span></button>
+        <span class="re" data-exp="${ci}" style="cursor:pointer;margin-left:4px">✏️</span>
+      </div>
+      <div class="cat-body" id="cb${ci}">
+        <div class="items-wrap" id="iw${ci}"></div>
+        <label class="lab" style="margin-top:8px">Нова дума</label>
+        <div class="field-row">
+          <input class="fld" id="ie${ci}" placeholder="🍓" style="max-width:72px">
+          <input class="fld grow" id="il${ci}" placeholder="дума">
+        </div>
+        <div class="field-row">
+          <button class="pbtn ghost" data-newimg="${ci}">📷 Снимка</button>
+          <span class="newimg-prev" id="nip${ci}"></span>
+          <button class="pbtn grow" data-add="${ci}">Добави</button>
+        </div>
+        <button class="pbtn danger" data-delcat="${ci}" style="margin-top:8px;width:100%">🗑️ Изтрий категорията</button>
+      </div>`;
+    box.appendChild(acc);
+    fillItems(ci);
+  });
+  $$("[data-cp]").forEach(b=>b.onclick=()=>{
+    const [i,d]=b.dataset.cp.split("|").map(Number);
+    state.categories[i].points=Math.max(1,state.categories[i].points+d);save();
+    b.parentElement.querySelector(".val").textContent=state.categories[i].points;
+    fillItems(i);
+  });
+  $$("[data-con]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.con;state.categories[i].on=!state.categories[i].on;save();b.classList.toggle("on",state.categories[i].on);
+  });
+  $$("[data-exp]").forEach(b=>b.onclick=()=>$("#cb"+b.dataset.exp).classList.toggle("open"));
+  $$("[data-delcat]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.delcat;
+    if(confirm("Да изтрия категория „"+state.categories[i].name+"“ заедно с всичките думи?")){
+      state.categories.splice(i,1);save();renderCatList();
+    }
+  });
+  $$("[data-newimg]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.newimg;
+    pickImage(d=>{pendingItemImg[i]=d;const pv=$("#nip"+i);if(pv)pv.innerHTML=`<img src="${d}" style="width:34px;height:34px;object-fit:cover;border-radius:8px">`;});
+  });
+  $$("[data-add]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.add;const e=$("#ie"+i).value.trim();const l=$("#il"+i).value.trim();const img=pendingItemImg[i]||null;
+    if(!l||(!e&&!img)){toast("Трябва дума и емоджи или снимка");return;}
+    const item={l,e:e||"🖼️"};if(img)item.img=img;
+    state.categories[i].items.push(item);save();
+    $("#ie"+i).value="";$("#il"+i).value="";pendingItemImg[i]=null;const pv=$("#nip"+i);if(pv)pv.innerHTML="";
+    fillItems(i);
+  });
+}
+function fillItems(ci){
+  const w=$("#iw"+ci);if(!w)return;w.innerHTML="";
+  const catPts=state.categories[ci].points;
+  state.categories[ci].items.forEach((it,ii)=>{
+    const pts=(it.p!=null)?it.p:catPts;
+    const media = it.img
+      ? `<span class="ir-media" data-setimg="${ci}|${ii}"><img src="${it.img}" alt=""><span class="cam">📷</span></span>`
+      : `<span class="ir-media" data-setimg="${ci}|${ii}">${it.e}<span class="cam">📷</span></span>`;
+    const row=document.createElement("div");row.className="item-row";
+    row.innerHTML=`${media}
+      <span class="ir-name">${it.l}</span>
+      <span class="chip-pts"><button class="cpx" data-ip="${ci}|${ii}|-1">−</button><b>${pts}⭐</b><button class="cpx" data-ip="${ci}|${ii}|1">+</button></span>
+      ${it.img?`<button class="ir-btn" data-revert="${ci}|${ii}" title="Махни снимката">↺</button>`:""}
+      <button class="ir-btn" data-del="${ci}|${ii}" title="Изтрий">🗑️</button>`;
+    w.appendChild(row);
+  });
+  w.querySelectorAll("[data-del]").forEach(b=>b.onclick=()=>{
+    const [i,j]=b.dataset.del.split("|").map(Number);
+    state.categories[i].items.splice(j,1);save();fillItems(i);
+  });
+  w.querySelectorAll("[data-ip]").forEach(b=>b.onclick=()=>{
+    const [i,j,d]=b.dataset.ip.split("|").map(Number);
+    const it=state.categories[i].items[j];
+    const base=(it.p!=null)?it.p:state.categories[i].points;
+    it.p=Math.max(1,base+d);save();fillItems(i);
+  });
+  w.querySelectorAll("[data-setimg]").forEach(b=>b.onclick=()=>{
+    const [i,j]=b.dataset.setimg.split("|").map(Number);
+    pickImage(d=>{state.categories[i].items[j].img=d;save();fillItems(i);});
+  });
+  w.querySelectorAll("[data-revert]").forEach(b=>b.onclick=()=>{
+    const [i,j]=b.dataset.revert.split("|").map(Number);
+    delete state.categories[i].items[j].img;save();fillItems(i);
+  });
+}
+
+function renderTreatList(){
+  const box=$("#treatList");box.innerHTML="";
+  state.treats.forEach((t,ti)=>{
+    const row=document.createElement("div");row.className="row";
+    const img=t.photo?`<img src="${t.photo}" style="width:30px;height:30px;object-fit:cover;border-radius:8px">`:`<span class="re">${t.emoji||"🍬"}</span>`;
+    row.innerHTML=`
+      <div class="rl">${img}${t.name}</div>
+      <div class="stepper">
+        <button class="step minus" data-tp="${ti}|-5">−5</button>
+        <span class="val">${t.price}</span>
+        <button class="step plus" data-tp="${ti}|5">+5</button>
+        <button class="step minus" data-tdel="${ti}" style="background:#FFD9D9">🗑️</button>
+      </div>`;
+    box.appendChild(row);
+  });
+  $$("[data-tp]").forEach(b=>b.onclick=()=>{
+    const [i,d]=b.dataset.tp.split("|").map(Number);
+    state.treats[i].price=Math.max(1,state.treats[i].price+d);save();
+    b.parentElement.querySelector(".val").textContent=state.treats[i].price;
+  });
+  $$("[data-tdel]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.tdel;
+    if(confirm("Да изтрия „"+state.treats[i].name+"“?")){state.treats.splice(i,1);save();renderTreatList();}
+  });
+}
+function addTreat(){
+  const name=$("#ntName").value.trim();
+  const price=parseInt($("#ntPrice").value);
+  const emoji=$("#ntEmoji").value.trim();
+  if(!name||isNaN(price)){toast("Трябват име и цена");return;}
+  if(!emoji&&!newPhoto){toast("Добави емоджи или снимка");return;}
+  state.treats.push({id:"t"+Date.now(),name,price:Math.max(1,price),emoji:emoji||null,photo:newPhoto});
+  save();newPhoto=null;
+  $("#ntName").value="";$("#ntPrice").value="";$("#ntEmoji").value="";$("#ntPreview").innerHTML="";
+  renderTreatList();toast(name+" е добавено ✓");
+}
+
+/* image resize to keep localStorage small */
+function resizeImg(file,cb,max){
+  max=max||320;
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const sc=Math.min(1,max/Math.max(img.width,img.height));
+      const cv=document.createElement("canvas");cv.width=img.width*sc;cv.height=img.height*sc;
+      cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+      cb(cv.toDataURL("image/jpeg",0.82));
+    };
+    img.src=e.target.result;
+  };
+  r.readAsDataURL(file);
+}
+
+/* export / import */
+function exportData(){
+  const blob=new Blob([JSON.stringify(state)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="alara-igra.json";a.click();URL.revokeObjectURL(a.href);
+  toast("Копието е свалено 💾");
+}
+function importData(e){
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{try{state=Object.assign(defaults(),JSON.parse(ev.target.result));save();renderStars();renderParent();toast("Заредено ✓");}catch(err){toast("Грешен файл");}};
+  r.readAsText(f);
+}
+
+/* close overlays on backdrop tap */
+$("#parentOverlay").addEventListener("click",e=>{if(e.target.id==="parentOverlay")closeParent();});
+$("#buyOverlay").addEventListener("click",e=>{if(e.target.id==="buyOverlay")$("#buyOverlay").classList.remove("on");});
+
+/* ---------- profiles / auth ---------- */
+function showLogin(){
+  App.activeId=null; state=null; saveApp();
+  $(".topbar").style.display="none";
+  $$(".screen").forEach(s=>s.classList.remove("on"));
+  $("#login").classList.add("on");
+  renderProfileList();
+}
+function enterApp(){
+  closeModal();
+  $(".topbar").style.display="flex";
+  $("#greetLine").textContent="Здравей, "+activeName()+"!";
+  renderStars(); updateWheelBtn(); renderBoostBadge();
+  show("home");
+}
+function activateProfile(id){
+  App.activeId=id;
+  const p=activeProfile();
+  state=migrate(Object.assign(defaults(), p.data||{}));
+  p.data=state; saveApp();
+  enterApp();
+}
+function renderProfileList(){
+  const box=$("#profileList");if(!box)return;box.innerHTML="";
+  if(!App.profiles.length){box.innerHTML='<p class="hint" style="text-align:center">Още няма профили. Създай първия!</p>';return;}
+  App.profiles.forEach(p=>{
+    const b=document.createElement("button");b.className="profile-card";
+    b.innerHTML=`<span class="pc-emoji">${p.emoji||"🧒"}</span><span class="pc-name">${p.name}</span>
+      <span class="pc-lock">${p.pass?"🔒":"🔓"}</span>`;
+    b.onclick=()=>askLogin(p);
+    box.appendChild(b);
+  });
+}
+function askLogin(p){
+  if(!p.pass){activateProfile(p.id);return;}
+  openModal(`<div style="text-align:center"><div style="font-size:54px;line-height:1">${p.emoji||"🧒"}</div><h2>${p.name}</h2>
+    <p class="hint">Въведи паролата</p></div>
+    <input class="fld" id="loginPass" type="password" placeholder="Парола" style="text-align:center">
+    <div id="loginErr" class="hint" style="color:var(--coral-d);text-align:center;min-height:1.1em"></div>
+    <div class="btn-row"><button class="pbtn ghost" id="modalClose">Отказ</button><button class="pbtn grow" id="loginGo">Влез</button></div>`);
+  $("#modalClose").onclick=closeModal;
+  const go=()=>{ if($("#loginPass").value===p.pass){closeModal();activateProfile(p.id);} else {$("#loginErr").textContent="Грешна парола";} };
+  $("#loginGo").onclick=go;
+  const inp=$("#loginPass"); inp.addEventListener("keydown",e=>{if(e.key==="Enter")go();}); setTimeout(()=>inp.focus(),60);
+}
+function addProfileFlow(){
+  openModal(`<h2>Нов профил</h2><p class="hint">Име на детето и по желание парола.</p>
+    <label class="lab">Име на детето</label><input class="fld" id="npName" placeholder="напр. Алара">
+    <label class="lab">Емоджи (по избор)</label><input class="fld" id="npEmoji" placeholder="🧒">
+    <label class="lab">Парола (по избор)</label><input class="fld" id="npPass" type="password" placeholder="остави празно за без парола">
+    <div id="npErr" class="hint" style="color:var(--coral-d);min-height:1.1em"></div>
+    <div class="btn-row"><button class="pbtn ghost" id="modalClose">Отказ</button><button class="pbtn grow" id="npCreate">Създай</button></div>`);
+  $("#modalClose").onclick=closeModal;
+  $("#npCreate").onclick=()=>{
+    const name=$("#npName").value.trim();if(!name){$("#npErr").textContent="Въведи име";return;}
+    const id="p"+Date.now();
+    App.profiles.push({id,name,emoji:$("#npEmoji").value.trim()||"🧒",pass:$("#npPass").value,data:defaults()});
+    saveApp();closeModal();activateProfile(id);
+  };
+}
+$("#addProfileBtn").onclick=addProfileFlow;
+
+/* ---------- init ---------- */
+showLogin();
+</script>
+</body>
+</html>
