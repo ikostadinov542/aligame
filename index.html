@@ -298,6 +298,11 @@
     color:#fff;padding:12px 22px;border-radius:999px;font-weight:600;z-index:80;opacity:0;transition:.25s;pointer-events:none;font-size:16px;}
   .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
 
+  .sync-pill{position:fixed;left:12px;bottom:12px;z-index:75;background:#fff;color:var(--ink-soft);
+    border-radius:999px;padding:6px 13px;font-size:12.5px;font-weight:600;box-shadow:0 3px 12px rgba(0,0,0,.14);
+    display:flex;align-items:center;gap:6px;opacity:.95;}
+  .sync-pill.hide{display:none;}
+
   .float-star{position:fixed;z-index:70;font-weight:700;color:var(--gold-d);font-size:30px;pointer-events:none;
     animation:floatup 1s ease forwards;}
   @keyframes floatup{0%{opacity:0;transform:translateY(0) scale(.6);}20%{opacity:1;}100%{opacity:0;transform:translateY(-70px) scale(1.2);}}
@@ -398,6 +403,7 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="sync-pill hide" id="syncStatus"></div>
 
 <script>
 "use strict";
@@ -493,7 +499,53 @@ function loadApp(){
 function saveApp(){try{localStorage.setItem(APPKEY,JSON.stringify(App));}catch(e){}}
 function activeProfile(){return App.profiles.find(p=>p.id===App.activeId);}
 function activeName(){const p=activeProfile();return p?p.name:"";}
-function save(){const p=activeProfile();if(p)p.data=state;saveApp();}
+function save(){const p=activeProfile();if(p)p.data=state;saveApp();queueCloudPush();}
+
+/* ---------- Supabase cloud sync ---------- */
+const SB_URL="https://zrrrasqprlgfsdvcxfkh.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpycnJhc3FwcmxnZnNkdmN4ZmtoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE4MzE3NDUsImV4cCI6MjA5NzQwNzc0NX0.lAdwugTCM9gASreswClfHEVtze02cKKycgzYJHooBRg";
+const SB_H={apikey:SB_KEY,Authorization:"Bearer "+SB_KEY,"Content-Type":"application/json"};
+function setSync(s){
+  const el=$("#syncStatus"); if(!el)return;
+  const map={loading:["⏳","Зареждане…"],saving:["⏳","Записва…"],ok:["☁️","Синхронизирано"],offline:["⚠️","Офлайн — пази локално"]};
+  const m=map[s]||map.ok; el.textContent=m[0]+" "+m[1]; el.classList.remove("hide");
+  clearTimeout(el._t);
+  if(s==="ok") el._t=setTimeout(()=>el.classList.add("hide"),2500);
+}
+async function cloudFetchAll(){
+  const r=await fetch(`${SB_URL}/rest/v1/profiles?select=id,name,emoji,pass,data&order=name.asc`,{headers:SB_H});
+  if(!r.ok) throw new Error("fetch "+r.status);
+  return await r.json();
+}
+async function cloudUpsert(p){
+  const row={id:p.id,name:p.name,emoji:p.emoji||"🧒",pass:p.pass||"",data:p.data||{},updated_at:new Date().toISOString()};
+  const r=await fetch(`${SB_URL}/rest/v1/profiles?on_conflict=id`,{method:"POST",
+    headers:{...SB_H,Prefer:"resolution=merge-duplicates,return=minimal"},body:JSON.stringify(row)});
+  if(!r.ok) throw new Error("upsert "+r.status);
+}
+async function cloudDelete(id){
+  const r=await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(id)}`,{method:"DELETE",headers:{...SB_H,Prefer:"return=minimal"}});
+  if(!r.ok) throw new Error("delete "+r.status);
+}
+let pushTimer=null;
+function queueCloudPush(){
+  const p=activeProfile(); if(!p) return;
+  setSync("saving"); clearTimeout(pushTimer);
+  pushTimer=setTimeout(async()=>{
+    try{ await cloudUpsert(activeProfile()); setSync("ok"); }catch(e){ setSync("offline"); }
+  },900);
+}
+async function pushProfileNow(p){ setSync("saving"); try{ await cloudUpsert(p); setSync("ok"); }catch(e){ setSync("offline"); } }
+async function refreshProfilesFromCloud(){
+  setSync("loading");
+  try{
+    const cloud=await cloudFetchAll();
+    const ids=new Set(cloud.map(r=>r.id));
+    const merged=cloud.map(r=>({id:r.id,name:r.name,emoji:r.emoji||"🧒",pass:r.pass||"",data:r.data||defaults()}));
+    for(const lp of App.profiles){ if(!ids.has(lp.id)){ merged.push(lp); cloudUpsert(lp).catch(()=>{}); } }
+    App.profiles=merged; saveApp(); renderProfileList(); setSync("ok");
+  }catch(e){ setSync("offline"); }
+}
 
 /* ---------- helpers ---------- */
 const $=s=>document.querySelector(s);
@@ -1001,7 +1053,7 @@ function wireParent(){
       <label class="lab">Емоджи</label><input class="fld" id="rnEmoji" value="${p.emoji||'🧒'}">
       <div class="btn-row"><button class="pbtn ghost" id="modalClose">Отказ</button><button class="pbtn grow" id="rnSave">Запази</button></div>`);
     $("#modalClose").onclick=closeModal;
-    $("#rnSave").onclick=()=>{const n=$("#rnName").value.trim();if(!n)return;p.name=n;p.emoji=$("#rnEmoji").value.trim()||"🧒";saveApp();closeModal();$("#greetLine").textContent="Здравей, "+activeName()+"!";renderParent();};
+    $("#rnSave").onclick=()=>{const n=$("#rnName").value.trim();if(!n)return;p.name=n;p.emoji=$("#rnEmoji").value.trim()||"🧒";saveApp();pushProfileNow(p);closeModal();$("#greetLine").textContent="Здравей, "+activeName()+"!";renderParent();};
   };
   $("#passProfile").onclick=()=>{
     const p=activeProfile();
@@ -1009,12 +1061,13 @@ function wireParent(){
       <input class="fld" id="cpPass" type="password" placeholder="Нова парола" value="${(p.pass||'').replace(/"/g,'&quot;')}">
       <div class="btn-row"><button class="pbtn ghost" id="modalClose">Отказ</button><button class="pbtn grow" id="cpSave">Запази</button></div>`);
     $("#modalClose").onclick=closeModal;
-    $("#cpSave").onclick=()=>{p.pass=$("#cpPass").value;saveApp();closeModal();toast(p.pass?"Паролата е зададена 🔒":"Паролата е махната 🔓");};
+    $("#cpSave").onclick=()=>{p.pass=$("#cpPass").value;saveApp();pushProfileNow(p);closeModal();toast(p.pass?"Паролата е зададена 🔒":"Паролата е махната 🔓");};
   };
   $("#delProfile").onclick=()=>{
     const p=activeProfile();
     if(confirm("Да изтрия профила „"+p.name+"“ с всичките данни? Това е необратимо.")){
-      App.profiles=App.profiles.filter(x=>x.id!==App.activeId);saveApp();closeParent();showLogin();
+      const id=App.activeId; cloudDelete(id).catch(()=>{});
+      App.profiles=App.profiles.filter(x=>x.id!==id);saveApp();closeParent();showLogin();
     }
   };
   // stars
@@ -1228,6 +1281,7 @@ function showLogin(){
   $$(".screen").forEach(s=>s.classList.remove("on"));
   $("#login").classList.add("on");
   renderProfileList();
+  refreshProfilesFromCloud();
 }
 function enterApp(){
   closeModal();
@@ -1277,8 +1331,8 @@ function addProfileFlow(){
   $("#npCreate").onclick=()=>{
     const name=$("#npName").value.trim();if(!name){$("#npErr").textContent="Въведи име";return;}
     const id="p"+Date.now();
-    App.profiles.push({id,name,emoji:$("#npEmoji").value.trim()||"🧒",pass:$("#npPass").value,data:defaults()});
-    saveApp();closeModal();activateProfile(id);
+    const np={id,name,emoji:$("#npEmoji").value.trim()||"🧒",pass:$("#npPass").value,data:defaults()};
+    App.profiles.push(np);saveApp();pushProfileNow(np);closeModal();activateProfile(id);
   };
 }
 $("#addProfileBtn").onclick=addProfileFlow;
